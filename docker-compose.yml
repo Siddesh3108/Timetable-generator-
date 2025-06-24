@@ -7,9 +7,6 @@ services:
     ports:
       - "5000:5000"
     environment:
-      # These variables are read by config.py
-      - DATABASE_URL=postgresql://user:password@db/timetable_db
-      - REDIS_URL=redis://redis:6379/0
       - FLASK_APP=app:create_app()
     volumes:
       - ./backend:/app
@@ -20,18 +17,11 @@ services:
         condition: service_healthy
 
   celery:
-    build: ./backend
+    build:
+      context: ./backend
+    # The command now correctly points to the celery_app instance in our new entrypoint
+    command: celery -A celery_worker.celery_app worker --loglevel=info
     container_name: timetable-celery
-    # Use the simple, standard command.
-    command: celery -A app.extensions.celery worker --loglevel=info
-    # --- THIS IS THE CRITICAL FIX ---
-    # We directly provide the environment variables Celery natively understands.
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      # Also needed for database access inside tasks
-      - DATABASE_URL=postgresql://user:password@db/timetable_db
-    # --- END OF FIX ---
     volumes:
       - ./backend:/app
     depends_on:
@@ -41,7 +31,8 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
     container_name: timetable-frontend
     ports:
       - "80:80"
@@ -73,4 +64,4 @@ services:
       retries: 5
 
 volumes:
-  postgres-data:
+  postgres-data: {}

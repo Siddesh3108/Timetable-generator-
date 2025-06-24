@@ -8,16 +8,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 bcrypt = Bcrypt()
 login_manager = LoginManager()
-
-# --- THIS IS THE CRITICAL FIX ---
-# We add the `include` argument to tell Celery which modules to search for tasks.
-celery = Celery(
-    __name__, 
-    broker_url='redis://redis:6379/0', 
-    backend='redis://redis:6379/0',
-    include=['app.ai_engine.celery_tasks']  # This line registers our tasks.
-)
-# --- END OF FIX ---
+celery = Celery() # Create an empty object, to be configured by the app factory
 
 @login_manager.user_loader
 def load_user(user_id):

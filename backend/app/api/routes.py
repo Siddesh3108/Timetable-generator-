@@ -26,7 +26,7 @@ def handle_subjects(): data = request.get_json(); new_item = Subject(user_id=cur
 @api_bp.route('/generate', methods=['POST'])
 @login_required
 def generate_timetable():
-    from ..ai_engine.celery_tasks import generate_timetable_task
+    from ..ai_engine.tasks import generate_timetable_task
     task = generate_timetable_task.delay(user_id=current_user.id)
     return jsonify({"message": "Generation started!", "taskId": task.id}), 202
 
@@ -34,7 +34,7 @@ def generate_timetable():
 @api_bp.route('/task/<task_id>', methods=['GET'])
 @login_required
 def get_task_status(task_id):
-    from ..ai_engine.celery_tasks import generate_timetable_task
+    from ..ai_engine.tasks import generate_timetable_task
     task = generate_timetable_task.AsyncResult(task_id)
     
     response = {'state': task.state}
