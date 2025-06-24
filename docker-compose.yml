@@ -15,11 +15,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-
   celery:
     build:
       context: ./backend
-    # The command now correctly points to the celery_app instance in our new entrypoint
     command: celery -A celery_worker.celery_app worker --loglevel=info
     container_name: timetable-celery
     volumes:
@@ -29,7 +27,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-
   frontend:
     build:
       context: ./frontend
@@ -38,7 +35,6 @@ services:
       - "80:80"
     depends_on:
       - backend
-
   db:
     image: postgres:14
     container_name: timetable-db
@@ -53,7 +49,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
   redis:
     image: redis:7
     container_name: timetable-redis
@@ -62,6 +57,5 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
 volumes:
   postgres-data: {}

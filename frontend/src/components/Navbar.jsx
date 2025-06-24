@@ -13,7 +13,7 @@ const Navbar = () => {
                         <nav className="flex items-center space-x-4">
                             <NavLink to="/dashboard" className={linkClass}>Dashboard</NavLink>
                             <NavLink to="/data-entry" className={linkClass}>Data Entry</NavLink>
-                            <NavLink to="/generate" className={linkClass}>Generate</NavLink> {/* Add Generate link */}
+                            <NavLink to="/generate" className={linkClass}>Generate</NavLink>
                             <NavLink to="/timetable" className={linkClass}>Timetable</NavLink>
                         </nav>
                         <div className="flex items-center space-x-3">

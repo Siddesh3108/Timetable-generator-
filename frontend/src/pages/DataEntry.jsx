@@ -3,7 +3,6 @@ import { useLocation } from 'react-router-dom';
 import TeacherForm from '../components/forms/TeacherForm';
 import RoomForm from '../components/forms/RoomForm';
 import SubjectForm from '../components/forms/SubjectForm';
-
 export default function DataEntry() {
     const location = useLocation();
     const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'Teachers');

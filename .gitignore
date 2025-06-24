@@ -7,15 +7,12 @@ __pycache__/
 .env
 .venv/
 venv/
-
 # Node
 node_modules/
 dist/
 npm-debug.log
-
 # Docker
 data/
-
 # IDE
 .vscode/
 .idea/

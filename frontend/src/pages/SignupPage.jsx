@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import apiClient from '../api';
-
 export default function SignupPage() {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -9,7 +8,6 @@ export default function SignupPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
-
     const handleSubmit = async (e) => {
         e.preventDefault(); setLoading(true); setError('');
         if (password.length < 6) {
@@ -36,26 +34,12 @@ export default function SignupPage() {
                 <div className="bg-white px-6 py-8 shadow-lg rounded-xl sm:px-10">
                     {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm text-center">{error}</div>}
                     <form onSubmit={handleSubmit} className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-medium leading-6 text-gray-900">Username</label>
-                            <div className="mt-2"><input type="text" value={username} onChange={e => setUsername(e.target.value)} required className={inputClass}/></div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium leading-6 text-gray-900">Email Address</label>
-                            <div className="mt-2"><input type="email" value={email} onChange={e => setEmail(e.target.value)} required className={inputClass}/></div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium leading-6 text-gray-900">Password</label>
-                            <div className="mt-2"><input type="password" value={password} onChange={e => setPassword(e.target.value)} required className={inputClass}/></div>
-                        </div>
-                        <button type="submit" disabled={loading} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400">
-                            {loading ? 'Creating Account...' : 'Create Account'}
-                        </button>
+                        <div><label className="block text-sm font-medium leading-6 text-gray-900">Username</label><div className="mt-2"><input type="text" value={username} onChange={e => setUsername(e.target.value)} required className={inputClass}/></div></div>
+                        <div><label className="block text-sm font-medium leading-6 text-gray-900">Email Address</label><div className="mt-2"><input type="email" value={email} onChange={e => setEmail(e.target.value)} required className={inputClass}/></div></div>
+                        <div><label className="block text-sm font-medium leading-6 text-gray-900">Password</label><div className="mt-2"><input type="password" value={password} onChange={e => setPassword(e.target.value)} required className={inputClass}/></div></div>
+                        <button type="submit" disabled={loading} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400">{loading ? 'Creating Account...' : 'Create Account'}</button>
                     </form>
-                    <p className="mt-10 text-center text-sm text-gray-500">
-                        Already have an account?{' '}
-                        <Link to="/login" className="font-semibold leading-6 text-blue-600 hover:text-blue-500">Log in</Link>
-                    </p>
+                    <p className="mt-10 text-center text-sm text-gray-500">Already have an account?{' '}<Link to="/login" className="font-semibold leading-6 text-blue-600 hover:text-blue-500">Log in</Link></p>
                 </div>
             </div>
         </div>
