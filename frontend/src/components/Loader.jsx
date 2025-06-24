@@ -1,0 +1,1 @@
+import React from 'react'; export default function Loader({ statusMessage }) { return (<div className="fixed inset-0 bg-gray-100 flex items-center justify-center z-50"><div className="text-center"><p className="text-lg font-semibold">{statusMessage || 'Loading...'}</p></div></div>); }

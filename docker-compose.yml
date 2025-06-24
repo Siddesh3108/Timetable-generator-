@@ -1,0 +1,76 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: timetable-backend
+    ports:
+      - "5000:5000"
+    environment:
+      # These variables are read by config.py
+      - DATABASE_URL=postgresql://user:password@db/timetable_db
+      - REDIS_URL=redis://redis:6379/0
+      - FLASK_APP=app:create_app()
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery:
+    build: ./backend
+    container_name: timetable-celery
+    # Use the simple, standard command.
+    command: celery -A app.extensions.celery worker --loglevel=info
+    # --- THIS IS THE CRITICAL FIX ---
+    # We directly provide the environment variables Celery natively understands.
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      # Also needed for database access inside tasks
+      - DATABASE_URL=postgresql://user:password@db/timetable_db
+    # --- END OF FIX ---
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: timetable-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:14
+    container_name: timetable-db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: timetable_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: timetable-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
