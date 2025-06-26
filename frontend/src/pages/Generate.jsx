@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext'; // <-- Import useAuth
+
 export default function GeneratePage() {
     const [task, setTask] = useState(null);
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const { setTimetableResult } = useAuth(); // <-- Get the global setter function
+
     const handleGenerate = () => {
         setError('');
         setTask({ state: 'PENDING', status: 'Submitting job to the AI engine...' });
@@ -12,13 +16,17 @@ export default function GeneratePage() {
             .then(res => setTask({ id: res.data.taskId, state: 'PENDING', status: 'Task is in the queue...' }))
             .catch(() => setError('Failed to start the generation process.'));
     };
+
     useEffect(() => {
         if (!task?.id) return;
+
         const pollStatus = () => {
             apiClient.get(`/api/task/${task.id}`).then(res => {
                 const { state, status, result, error: taskError } = res.data;
                 if (state === 'SUCCESS') {
-                    navigate('/timetable', { state: { timetableResult: result } });
+                    // --- THIS IS THE KEY CHANGE ---
+                    setTimetableResult(result); // Save the result to the global context
+                    navigate('/timetable');      // Navigate without passing state
                 } else if (state === 'FAILURE') {
                     setError(taskError || 'The generation task failed for an unknown reason.');
                     setTask(null);
@@ -33,10 +41,13 @@ export default function GeneratePage() {
         };
         const timer = setTimeout(pollStatus, 1000);
         return () => clearTimeout(timer);
-    }, [task?.id, navigate]);
+    }, [task?.id, navigate, setTimetableResult]);
+
     const isProcessing = task && task.state !== 'SUCCESS' && task.state !== 'FAILURE';
+
     return (
         <div className="container mx-auto px-4 py-16 text-center">
+            {/* ... (The rest of the JSX is the same) ... */}
             <h1 className="text-4xl font-bold">Generate Your Timetable</h1>
             <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
                 Ensure all your data is entered correctly on the 'Data Entry' page. Then, click the button below to start the AI generation.

@@ -42,3 +42,18 @@ def session():
             'email': current_user.email
         }
     }), 200
+
+@auth_bp.route('/account', methods=['DELETE'])
+@login_required
+def delete_account():
+    """Permanently deletes the current user and all their data."""
+    user_to_delete = User.query.get(current_user.id)
+    
+    if user_to_delete:
+        # Important: Log the user out of the session before deleting from the DB
+        logout_user()
+        db.session.delete(user_to_delete)
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': 'Account permanently deleted.'}), 200
+        
+    return jsonify({'error': 'User not found.'}), 404
