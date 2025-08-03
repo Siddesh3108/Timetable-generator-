@@ -1,9 +1,9 @@
-import collections
+import collections  # <-- ADD THIS IMPORT, it's used in _decode_solution
 from ortools.sat.python import cp_model
 
 class TimetableSolver:
     """Solves the timetabling problem using Google's CP-SAT solver."""
-    
+
     def __init__(self, courses, rooms, teachers, divisions, settings):
         self.courses = courses
         self.rooms = rooms
@@ -26,9 +26,23 @@ class TimetableSolver:
         self._add_hard_constraints()
         self.solver.parameters.max_time_in_seconds = 60.0 # Add a timeout
         status = self.solver.Solve(self.model)
+
+        # --- START OF MODIFICATION: Capture Detailed Metrics ---
+        # This block gathers the raw performance data directly from the solver.
+        metrics = {
+            "status": self.solver.StatusName(status),
+            "wall_time_seconds": self.solver.WallTime(),
+            "objective_value": self.solver.ObjectiveValue(),
+            "conflicts": self.solver.NumConflicts()
+        }
+
+        # The function now returns a tuple: (solution, metrics)
         if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
-            return self._decode_solution()
-        return None
+            return self._decode_solution(), metrics  # <-- MODIFIED
+        
+        # On failure, still return the metrics so you can analyze why it failed.
+        return None, metrics  # <-- MODIFIED
+        # --- END OF MODIFICATION ---
 
     def _create_variables(self):
         """Creates the primary variables for the solver model."""
@@ -36,7 +50,7 @@ class TimetableSolver:
         for c in self.courses:
             theory_hours = c.subject.theory_lectures_per_week if c.subject else 0
             lab_sessions = c.subject.lab_sessions_per_week if c.subject else 0
-            
+
             for i in range(theory_hours):
                 self.course_instances.append({'id': f"t_{c.id}_{i}", 'course': c, 'is_lab': False, 'duration': 1})
             for i in range(lab_sessions):
@@ -57,6 +71,7 @@ class TimetableSolver:
                         self.room_assignments[(inst['id'], d, s, r.id)] = self.model.NewBoolVar(f"room_{inst['id']}_{d}_{s}_{r.id}")
 
     def _add_hard_constraints(self):
+        # ... (This entire method remains exactly the same, no changes needed) ...
         """Adds all hard constraints that MUST be satisfied for a valid timetable."""
         
         # C1: Each lecture must be scheduled exactly once.
@@ -147,14 +162,17 @@ class TimetableSolver:
                 self.model.Add(sum(self.lecture_vars[(inst_id, d, s)] for inst_id in course_lab_instances for s in self.slots) <= 1)
 
     def _get_active_lecture_var(self, instance, day, slot):
+        # ... (This method remains the same) ...
         """Returns a sum of variables indicating if a lecture is active at a given time."""
         return sum(self.lecture_vars.get((instance['id'], day, s_start), 0) for s_start in range(max(0, slot - instance['duration'] + 1), slot + 1))
 
     def _get_active_room_var(self, instance, day, slot, room_id):
+        # ... (This method remains the same) ...
         """Returns a sum of variables indicating if a lecture is in a room at a given time."""
         return sum(self.room_assignments.get((instance['id'], day, s_start, room_id), 0) for s_start in range(max(0, slot - instance['duration'] + 1), slot + 1))
 
     def _decode_solution(self):
+        # ... (This method remains the same) ...
         """Converts the solver's output into a human-readable timetable grid."""
         timetable_grid = collections.defaultdict(list)
         room_map = {r.id: r for r in self.rooms}

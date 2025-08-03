@@ -1,12 +1,12 @@
 import logging
 from app import create_app
-from ..extensions import celery, db  # Make sure 'db' is imported
+from ..extensions import celery, db
 from ..models import Teacher, Room, Subject, Course, Division, User
 from .constraint_manager import TimetableSolver
 
 logger = logging.getLogger(__name__)
 
-# This function is correct and does not need to change.
+# --- THIS IS THE FUNCTION WE ARE MODIFYING ---
 def run_or_tools_solver(user_id, settings, task_update_callback):
     """The main logic function that uses the new OR-Tools solver."""
     task_update_callback('PROGRESS', {'status': 'Fetching latest data from database...', 'progress': 10})
@@ -25,20 +25,33 @@ def run_or_tools_solver(user_id, settings, task_update_callback):
 
     task_update_callback('PROGRESS', {'status': 'Solving... This may take a few moments.', 'progress': 50})
     
-    solution = solver.solve()
+    # --- START OF MODIFICATION ---
+
+    # 1. Capture both the solution and the detailed metrics from the solver
+    solution, metrics = solver.solve()
+
+    # 2. Log the detailed metrics to the console for your research paper
+    # This data will NOT go to the frontend.
+    logger.info(f"SOLVER METRICS FOR USER {user_id}: {metrics}")
 
     task_update_callback('PROGRESS', {'status': 'Finalizing timetable...', 'progress': 90})
 
+    # 3. Update the error handling to use the precise status from the solver
     if solution is None:
-        raise ValueError("No solution could be found. This may be due to impossible constraints (e.g., not enough rooms or teachers for the required lectures). Check your custom working days and hours.")
+        failure_reason = (f"No solution could be found (Solver Status: {metrics['status']}). "
+                          "This may be due to impossible constraints (e.g., not enough rooms or teachers). "
+                          "Check your custom working days and hours.")
+        raise ValueError(failure_reason)
 
+    # 4. Return the original data structure that the frontend expects.
+    #    The detailed `metrics` are logged, but not sent to the UI.
     return {
         'timetable': solution, 
         'settings': settings,
-        'metrics': {'conflicts': 0, 'status': 'Optimal solution found'}
+        'metrics': {'conflicts': 0, 'status': 'Optimal solution found'} # Keep this simple for the UI
     }
+    # --- END OF MODIFICATION ---
 
-# --- THIS IS THE FUNCTION WITH THE CRITICAL FIX ---
 @celery.task(bind=True)
 def generate_timetable_task(self, user_id):
     """Celery task entry point."""
@@ -46,24 +59,16 @@ def generate_timetable_task(self, user_id):
     app = create_app()
     with app.app_context():
         try:
-            # Step 1: Get the user object. It might have stale data.
             user = User.query.get(user_id)
             if not user:
                 raise ValueError(f"User with ID {user_id} not found.")
 
-            # Step 2: THE CRITICAL FIX
-            # Tell the session to "expire" the user object. This marks all its
-            # data as invalid and forces a fresh database query on the next access.
             db.session.expire(user)
-            
-            # Step 3: Access user.settings. This access now forces SQLAlchemy
-            # to run a new SELECT query to get the latest settings from the DB.
             latest_settings = user.settings
 
             def update_progress_callback(state, meta):
                 self.update_state(state=state, meta=meta)
             
-            # Step 4: Pass the guaranteed fresh settings to the solver.
             result = run_or_tools_solver(user.id, latest_settings, update_progress_callback)
             
             return result
