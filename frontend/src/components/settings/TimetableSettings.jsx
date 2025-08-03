@@ -12,15 +12,47 @@ export default function TimetableSettings() {
     const [status, setStatus] = useState('');
     const [gen, setGen] = useState({ duration: 50, gap: 10, start: '09:00', end: '17:00' });
 
-    useEffect(() => {
-        apiClient.get('/api/settings').then(res => {
-            const fetched = res.data || {};
-            setSettings({
-                working_days: fetched.working_days || [0, 1, 2, 3, 4, 5],
-                time_slots: fetched.time_slots || [],
-            });
-        }).catch(() => setStatus('Could not load settings.'));
-    }, []);
+  
+useEffect(() => {
+    // A helper function to generate default slots if needed
+    const generateDefaultSlots = () => {
+        const generated = [];
+        for (let i = 9; i < 17; i++) { // Default to 9 AM to 5 PM
+            generated.push({ label: `${i}:00-${i+1}:00`, is_break: false, name: '' });
+        }
+        return generated;
+    };
+
+    apiClient.get('/api/settings').then(res => {
+        const fetched = res.data || {};
+        let finalSettings = {};
+
+        // SCENARIO 1: The user has saved custom time slots.
+        if (fetched.time_slots && fetched.time_slots.length > 0) {
+            finalSettings = {
+                working_days: fetched.working_days || [0, 1, 2, 3, 4], // Default working days
+                time_slots: fetched.time_slots,
+            };
+        // SCENARIO 2: A brand new user whose settings come from the model's default.
+        // Or any case where the data is missing.
+        } else {
+            finalSettings = {
+                working_days: fetched.working_days || [0, 1, 2, 3, 4], // Default working days
+                time_slots: generateDefaultSlots(), // Generate a default list to display
+            };
+        }
+        // This securely sets the state of the component with valid data.
+        setSettings(finalSettings);
+
+    }).catch(() => {
+        setStatus('Could not load settings. Using default values.');
+        // Set safe defaults on API failure
+        setSettings({
+            working_days: [0, 1, 2, 3, 4],
+            time_slots: generateDefaultSlots(),
+        });
+    });
+}, []); // The empty array ensures this runs only once when the page loads.
 
     const handleDayChange = (dayId) => {
         const currentDays = settings.working_days || [];

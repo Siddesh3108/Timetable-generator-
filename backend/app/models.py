@@ -10,19 +10,16 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(128), nullable=False)
     
     # Default: Monday-Friday (0-4), 9 AM to 5 PM (17:00)
-    settings = db.Column(JSONB, nullable=False, default=lambda: 
-    # {
-    #     "working_days": [0, 1, 2, 3, 4], 
-    #     "start_time": 9,
-    #     "end_time": 17 
-    # }
+    # The corrected code block for models.py
+    settings = db.Column(JSONB, nullable=False, default=lambda:
     {
-    "working_days": [0, 1, 2, 3, 4],
-    "time_slots": [
-        { "label": "9:00-9:50", "is_break": false },
-        { "label": "10:00-10:50", "is_break": false },
-        { "label": "11:00-12:30", "is_break": true, "name": "Lunch Break" },
-        { "label": "12:30-13:20", "is_break": false }]
+        "working_days": [0, 1, 2, 3, 4],
+        "time_slots": [
+            { "label": "9:00-9:50", "is_break": False },    # Changed from false
+            { "label": "10:00-10:50", "is_break": False },   # Changed from false
+            { "label": "11:00-12:30", "is_break": True, "name": "Lunch Break" },  # Changed from true
+            { "label": "12:30-13:20", "is_break": False }    # Changed from false
+        ]
     })
 
     def set_password(self, password): self.password_hash = bcrypt.generate_password_hash(password).decode('utf8')
