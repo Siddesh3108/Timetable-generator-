@@ -1,3 +1,5 @@
+// frontend/src/pages/DataEntry.jsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import TeacherForm from '../components/forms/TeacherForm';
@@ -28,8 +30,8 @@ export default function DataEntry() {
 
     const handleEdit = (item) => {
         setEditingItem(item);
-        // Optional: scroll to the form
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        // Scroll to the top of the form when editing
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleCancelEdit = () => {
@@ -49,13 +51,22 @@ export default function DataEntry() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Data Management</h1>
             <p className="text-gray-600 mb-8">Add, view, or manage your institution's core data. When ready, go to the 'Generate' page.</p>
             <div className="border-b border-gray-200"><nav className="-mb-px flex space-x-4">{tabs.map(tab => (<button key={tab} onClick={() => { setActiveTab(tab); setEditingItem(null); }} className={tabClass(tab)}>{tab}</button>))}</nav></div>
+            
+            {/* START: This is the section we are changing */}
             <div className="bg-white p-8 rounded-b-lg shadow-md max-w-7xl mx-auto">
-                <DataTable title={activeTab} items={data[activeTab]} onEdit={handleEdit} onSaveSuccess={fetchData} />
+                
+                {/* 1. THE FORM IS NOW AT THE TOP */}
+                <h2 className="text-xl font-bold mb-4">{editingItem ? `Editing ${activeTab.slice(0, -1)}` : `Add New ${activeTab.slice(0, -1)}`}</h2>
+                {ActiveForm && <ActiveForm onSaveSuccess={handleSaveSuccess} editingItem={editingItem} onCancelEdit={handleCancelEdit} />}
+
+                {/* 2. THE SEPARATOR DIV NOW WRAPS THE TABLE */}
                 <div className="border-t pt-6 mt-8">
-                     <h2 className="text-xl font-bold mb-4">{editingItem ? `Editing ${activeTab.slice(0, -1)}` : `Add New ${activeTab.slice(0, -1)}`}</h2>
-                    {ActiveForm && <ActiveForm onSaveSuccess={handleSaveSuccess} editingItem={editingItem} onCancelEdit={handleCancelEdit} />}
+                    {/* 3. THE DATA TABLE IS NOW AT THE BOTTOM */}
+                    <DataTable title={activeTab} items={data[activeTab]} onEdit={handleEdit} onSaveSuccess={fetchData} />
                 </div>
+
             </div>
+            {/* END: End of changed section */}
         </div>
     );
 }

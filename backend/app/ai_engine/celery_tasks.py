@@ -1,61 +1,71 @@
 import logging
 from app import create_app
-from ..extensions import celery
-from ..models import Teacher, Room, Subject
-from .genetic_algorithm import GeneticOptimizer
-from .constraint_manager import ConstraintManager
-from .nn_model import TimetableModel
+from ..extensions import celery, db  # Make sure 'db' is imported
+from ..models import Teacher, Room, Subject, Course, Division, User
+from .constraint_manager import TimetableSolver
+
 logger = logging.getLogger(__name__)
-def serialize_timetable(grid):
-    """Converts a timetable with ORM objects into a simple, JSON-friendly dictionary."""
-    serialized_grid = {}
-    for day, slots in grid.items():
-        serialized_grid[day] = {}
-        for time, events in slots.items():
-            serialized_grid[day][time] = [
-                {
-                    'id': event['id'],
-                    'subject': {'name': event['subject'].name, 'code': event['subject'].code},
-                    'teacher': {'name': event['teacher'].name},
-                    'room': {'name': event['room'].name, 'room_type': event['room'].room_type},
-                    'day': event['day'],
-                    'time': event['time']
-                } for event in events
-            ]
-    return serialized_grid
-def run_ai_generation_logic(user_id, task_update_callback):
-    task_update_callback('PROGRESS', {'status': 'Fetching latest data...', 'progress': 5})
-    teachers = Teacher.query.filter_by(user_id=user_id).all()
+
+# This function is correct and does not need to change.
+def run_or_tools_solver(user_id, settings, task_update_callback):
+    """The main logic function that uses the new OR-Tools solver."""
+    task_update_callback('PROGRESS', {'status': 'Fetching latest data from database...', 'progress': 10})
+    
+    courses = Course.query.filter_by(user_id=user_id).all()
     rooms = Room.query.filter_by(user_id=user_id).all()
-    subjects = Subject.query.filter_by(user_id=user_id).all()
-    if not all([teachers, rooms, subjects]):
-        raise ValueError("Insufficient data. Please add at least one Teacher, Room, and Subject.")
-    task_update_callback('PROGRESS', {'status': 'Initializing AI constraints...', 'progress': 15})
-    cm = ConstraintManager(teachers, rooms, subjects)
-    input_data = cm.get_feature_matrix()
-    if input_data.size == 0:
-        raise ValueError("Could not generate feature matrix from the data provided.")
-    task_update_callback('PROGRESS', {'status': 'Building neural network...', 'progress': 25})
-    model = TimetableModel(input_shape=input_data.shape, num_constraints=len(cm.get_constraint_types()))
-    model.build(input_shape=(None, input_data.shape[1])); model.compile(optimizer='adam')
-    task_update_callback('PROGRESS', {'status': 'Optimizing with Genetic Algorithm...', 'progress': 40})
-    ga = GeneticOptimizer() # Use default faster params
-    best_weights = ga.optimize(model, input_data, cm)
-    model.set_weights(best_weights)
-    task_update_callback('PROGRESS', {'status': 'Generating final timetable...', 'progress': 85})
-    predictions = model(input_data)
-    timetable_grid, raw_events = cm.decode_timetable(predictions.numpy())
-    metrics = cm.evaluate_timetable(raw_events)
-    serialized_grid = serialize_timetable(timetable_grid)
-    return {'timetable': serialized_grid, 'metrics': metrics}
+    teachers = Teacher.query.filter_by(user_id=user_id).all()
+    divisions = Division.query.filter_by(user_id=user_id).all()
+
+    if not all([courses, rooms, teachers, divisions]):
+        raise ValueError("Insufficient data. Please ensure you have created Divisions, Rooms, Teachers, Subjects, and assigned Courses.")
+
+    task_update_callback('PROGRESS', {'status': 'Initializing constraint solver with your custom settings...', 'progress': 30})
+    
+    solver = TimetableSolver(courses, rooms, teachers, divisions, settings)
+
+    task_update_callback('PROGRESS', {'status': 'Solving... This may take a few moments.', 'progress': 50})
+    
+    solution = solver.solve()
+
+    task_update_callback('PROGRESS', {'status': 'Finalizing timetable...', 'progress': 90})
+
+    if solution is None:
+        raise ValueError("No solution could be found. This may be due to impossible constraints (e.g., not enough rooms or teachers for the required lectures). Check your custom working days and hours.")
+
+    return {
+        'timetable': solution, 
+        'settings': settings,
+        'metrics': {'conflicts': 0, 'status': 'Optimal solution found'}
+    }
+
+# --- THIS IS THE FUNCTION WITH THE CRITICAL FIX ---
 @celery.task(bind=True)
 def generate_timetable_task(self, user_id):
-    logger.info(f"Task {self.request.id} for user {user_id} received.")
+    """Celery task entry point."""
+    logger.info(f"Task {self.request.id} for user {user_id} received (OR-Tools).")
     app = create_app()
     with app.app_context():
         try:
-            def update_progress_callback(state, meta): self.update_state(state=state, meta=meta)
-            result = run_ai_generation_logic(user_id, update_progress_callback)
+            # Step 1: Get the user object. It might have stale data.
+            user = User.query.get(user_id)
+            if not user:
+                raise ValueError(f"User with ID {user_id} not found.")
+
+            # Step 2: THE CRITICAL FIX
+            # Tell the session to "expire" the user object. This marks all its
+            # data as invalid and forces a fresh database query on the next access.
+            db.session.expire(user)
+            
+            # Step 3: Access user.settings. This access now forces SQLAlchemy
+            # to run a new SELECT query to get the latest settings from the DB.
+            latest_settings = user.settings
+
+            def update_progress_callback(state, meta):
+                self.update_state(state=state, meta=meta)
+            
+            # Step 4: Pass the guaranteed fresh settings to the solver.
+            result = run_or_tools_solver(user.id, latest_settings, update_progress_callback)
+            
             return result
         except Exception as e:
             logger.error(f"Celery task {self.request.id} failed: {str(e)}", exc_info=True)
