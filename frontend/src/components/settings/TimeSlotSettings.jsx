@@ -1,5 +1,3 @@
-// frontend/src/components/settings/TimeSlotSettings.jsx
-
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../api';
 
@@ -103,10 +101,37 @@ export default function TimetableSettings() {
         setSettings(prev => ({ ...prev, time_slots: prev.time_slots.filter((_, i) => i !== index)}));
     };
 
+    // --- START: CORRECTED AND IMPROVED FUNCTION ---
     const addSlot = () => {
-        const newSlot = { label: '16:00-17:00', is_break: false, name: '' };
+        const lastSlot = settings.time_slots[settings.time_slots.length - 1];
+        let newLabel = '09:00-10:00'; // Default if no slots exist
+
+        if (lastSlot && lastSlot.label.includes('-')) {
+            const [startTimeString, endTimeString] = lastSlot.label.split('-');
+
+            if (startTimeString && endTimeString) {
+                // Use a fixed reference date to avoid timezone/DST bugs
+                const referenceDate = '1970-01-01T';
+                const startTime = new Date(`${referenceDate}${startTimeString}:00`);
+                const endTime = new Date(`${referenceDate}${endTimeString}:00`);
+
+                // Calculate the duration of the previous slot
+                const durationMs = endTime.getTime() - startTime.getTime();
+
+                // The new slot starts at the end time of the last one
+                const newSlotStart = endTime;
+                const newSlotEnd = new Date(newSlotStart.getTime() + durationMs);
+
+                const formatTime = (date) => date.toTimeString().substring(0, 5);
+
+                newLabel = `${formatTime(newSlotStart)}-${formatTime(newSlotEnd)}`;
+            }
+        }
+
+        const newSlot = { label: newLabel, is_break: false, name: '' };
         setSettings(prev => ({ ...prev, time_slots: [...prev.time_slots, newSlot] }));
     };
+    // --- END: CORRECTED AND IMPROVED FUNCTION ---
     
     const handleSave = async () => {
         setStatus('Saving...');

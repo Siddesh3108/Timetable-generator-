@@ -1,17 +1,17 @@
-// frontend/src/pages/SettingsPage.jsx
+// frontend/src/pages/SettingsPage.jsx (Corrected)
 
 import React, { useState } from 'react';
 import AccountSettings from '../components/settings/AccountSettings';
-import TimetableSettings from '../components/settings/TimetableSettings';
+import TimetableSettings from '../components/settings/TimeSlotSettings'; // <-- THE FIX IS HERE
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState('Timetable');
     const tabs = ['Timetable', 'Account'];
 
-    const tabClass = (tabName) => 
+    const tabClass = (tabName) =>
         `px-4 py-2 font-semibold rounded-md transition-colors ${
-            activeTab === tabName 
-            ? 'bg-blue-600 text-white' 
+            activeTab === tabName
+            ? 'bg-blue-600 text-white'
             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
         }`;
 
