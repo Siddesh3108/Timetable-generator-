@@ -48,14 +48,31 @@ class TimetableSolver:
         """Creates the primary variables for the solver model."""
         self.course_instances = []
         for c in self.courses:
+            # Fetch the number of theory lectures and lab sessions from the database
             theory_hours = c.subject.theory_lectures_per_week if c.subject else 0
             lab_sessions = c.subject.lab_sessions_per_week if c.subject else 0
 
+            # --- THEORY INSTANCES ---
+            # For each theory lecture required, create one instance with a duration of 1 hour.
             for i in range(theory_hours):
-                self.course_instances.append({'id': f"t_{c.id}_{i}", 'course': c, 'is_lab': False, 'duration': 1})
+                self.course_instances.append({
+                    'id': f"t_{c.id}_{i}",
+                    'course': c,
+                    'is_lab': False,
+                    'duration': 1
+                })
+                
+            # --- LAB INSTANCES (CORRECTED) ---
+            # For each lab session required, create one instance with a duration of 1 hour.
             for i in range(lab_sessions):
-                self.course_instances.append({'id': f"l_{c.id}_{i}", 'course': c, 'is_lab': True, 'duration': 2})
+                self.course_instances.append({
+                    'id': f"l_{c.id}_{i}",
+                    'course': c,
+                    'is_lab': True,
+                    'duration': 1  # <-- THIS IS THE ONLY CHANGE
+                })
 
+        # The rest of the variable creation logic for the solver remains exactly the same.
         for inst in self.course_instances:
             for d in self.days:
                 for s in self.slots:
