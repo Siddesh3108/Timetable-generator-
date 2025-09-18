@@ -91,7 +91,7 @@ export default function SubjectForm({ onSaveSuccess, editingItem, onCancelEdit }
                 {(lectureType === 'Theory' || lectureType === 'Both') && <div><label>Theory Lectures per Week</label><input type="number" name="theory_lectures_per_week" value={formData.theory_lectures_per_week} onChange={handleFormChange} min="0" className={inputClass}/></div>}
                 {(lectureType === 'Lab' || lectureType === 'Both') && <div><label>Lab Sessions per Week</label><input type="number" name="lab_sessions_per_week" value={formData.lab_sessions_per_week} onChange={handleFormChange} min="0" className={inputClass}/></div>}
             </div>
-            <div className="text-xs text-gray-500 -mt-4"><p>Note: One lab session is typically a 2-hour block.</p></div>
+            <div className="text-xs text-gray-500 -mt-4"></div>
 
             <div className="flex justify-end pt-4">
                 <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">{editingItem ? 'Update Subject' : 'Save Subject'}</button>
