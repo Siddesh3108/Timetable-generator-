@@ -135,35 +135,23 @@ class TimetableSolver:
                 for r in self.rooms:
                     self.model.Add(sum(self._get_active_room_var(inst, d, s, r.id) for inst in self.course_instances) <= 1)
 
-        # --- START OF MODIFICATION: C11 Logic is updated ---
-        # C11: Labs for the same subject should be in 2-hour consecutive blocks where possible. (Hard)
+        # C10: Labs for the same subject should be in 2-hour consecutive blocks where possible. (Hard)
         labs_by_course = collections.defaultdict(list)
         for inst in self.course_instances:
             if inst['is_lab']:
                 labs_by_course[inst['course'].id].append(inst)
 
         for course_id, instances in labs_by_course.items():
-            # Sort instances to ensure consistent pairing (e.g., l_c1_0 with l_c1_1)
             instances.sort(key=lambda x: x['id'])
-            
-            # Iterate through the labs, pairing them up to form 2-hour blocks
-            # This loop takes steps of 2, so it pairs instances[0] with instances[1], then instances[2] with instances[3], etc.
-            # If there's an odd number of labs, the last one is ignored by this loop and can be scheduled freely.
             for i in range(0, len(instances) // 2 * 2, 2):
                 first_lab = instances[i]
                 second_lab = instances[i + 1]
-                
-                # Enforce that the second lab must start exactly one slot after the first on the same day
                 for d in self.days:
                     for s in range(1, len(self.slots)):
-                        # If the first lab is at slot s-1, the second must be at slot s
                         var1 = self.lecture_vars.get((first_lab['id'], d, s - 1), 0)
                         var2 = self.lecture_vars.get((second_lab['id'], d, s), 0)
                         self.model.Add(var1 == var2)
-                    
-                    # Also, the second lab of a pair cannot be scheduled in the first slot of any day
                     self.model.Add(self.lecture_vars.get((second_lab['id'], d, 0), 0) == 0)
-        # --- END OF MODIFICATION ---
 
         # C9: Max lectures per day for a teacher. (Soft)
         for t in self.teachers:
@@ -179,18 +167,31 @@ class TimetableSolver:
                     self.model.AddMaxEquality(penalty, [excess_hours, 0])
                     self.objective_terms.append(penalty)
         
-        # C10: A specific lab for a division should not happen more than once per day. (Soft)
-        for course_id in labs_by_course:
-            course_lab_instances = [inst['id'] for inst in labs_by_course[course_id]]
-            for d in self.days:
-                daily_lab_count = sum(self.lecture_vars[(inst_id, d, s)] for inst_id in course_lab_instances for s in self.slots)
-                
-                excess_labs = self.model.NewIntVar(-len(course_lab_instances), len(course_lab_instances), f'excess_labs_{course_id}_{d}')
-                self.model.Add(excess_labs == daily_lab_count - 1)
-
-                penalty = self.model.NewIntVar(0, len(course_lab_instances), f'penalty_lab_freq_{course_id}_{d}')
-                self.model.AddMaxEquality(penalty, [excess_labs, 0])
-                self.objective_terms.append(penalty)
+        # --- START OF MODIFICATION: New soft constraint for theory classes ---
+        # C11: Prefer scheduling theory classes before the main lunch break. (Soft)
+        
+        # First, find the index of the first break slot
+        lunch_start_slot = -1
+        for i, slot_data in enumerate(self.time_slots_data):
+            if slot_data.get('is_break'):
+                lunch_start_slot = i
+                break
+        
+        # Only add the constraint if a break is defined in the settings
+        if lunch_start_slot != -1:
+            for inst in self.course_instances:
+                # Apply this penalty only to theory classes (not labs)
+                if not inst['is_lab']:
+                    # Sum up all the scheduling variables for this class that occur after the break starts.
+                    # Because each class is scheduled exactly once, this sum will be either 0 or 1.
+                    # It will be 1 if the class is scheduled after the break (a violation), and 0 otherwise.
+                    penalty = sum(self.lecture_vars.get((inst['id'], d, s), 0)
+                                  for d in self.days
+                                  for s in range(lunch_start_slot, len(self.slots)))
+                    
+                    # Add this sum (which acts as a boolean penalty) to the objective.
+                    self.objective_terms.append(penalty)
+        # --- END OF MODIFICATION ---
 
         # Define the objective function to minimize the sum of all penalties
         self.model.Minimize(sum(self.objective_terms))
