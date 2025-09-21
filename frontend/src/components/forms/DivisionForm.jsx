@@ -1,31 +1,48 @@
-import React, { useState, useEffect } from 'react'; // <-- CORRECTED: Added useEffect here
+import React, { useState, useEffect } from 'react';
 import apiClient from '../../api';
 
-export default function DivisionForm({ onSaveSuccess }) {
-    const [name, setName] = useState('');
+// --- THIS IS THE NEW, FULLY CORRECTED FILE ---
+
+const initialFormState = { name: '' };
+
+export default function DivisionForm({ onSaveSuccess, editingItem, onCancelEdit }) {
+    const [formData, setFormData] = useState(initialFormState);
     const [status, setStatus] = useState('');
 
-    // This useEffect hook will make the success/error message disappear after 5 seconds
+    useEffect(() => {
+        if (editingItem) {
+            setFormData({ name: editingItem.name });
+        } else {
+            setFormData(initialFormState);
+        }
+    }, [editingItem]);
+
     useEffect(() => {
         if (status) {
-            const timer = setTimeout(() => {
-                setStatus('');
-            }, 5000);
-            return () => clearTimeout(timer); // This cleans up the timer if the component unmounts
+            const timer = setTimeout(() => setStatus(''), 5000);
+            return () => clearTimeout(timer);
         }
     }, [status]);
 
+    const handleChange = (e) => {
+        setFormData({ name: e.target.value });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!name.trim()) {
+        if (!formData.name.trim()) {
             setStatus({ msg: 'Division name cannot be empty.', error: true });
             return;
         }
+
+        const apiCall = editingItem
+            ? apiClient.put(`/api/divisions/${editingItem.id}`, formData)
+            : apiClient.post('/api/divisions', formData);
+            
         try {
-            await apiClient.post('/api/divisions', { name });
-            setStatus({ msg: `Division "${name}" saved successfully!`, error: false });
-            setName(''); // Clear form
-            if (onSaveSuccess) onSaveSuccess(); // Refresh the list
+            await apiCall;
+            setStatus({ msg: `Division "${formData.name}" ${editingItem ? 'updated' : 'saved'} successfully!`, error: false });
+            if (onSaveSuccess) onSaveSuccess(); // Refresh table & clear form
         } catch (err) {
             setStatus({ msg: 'Operation failed. Please try again.', error: true });
         }
@@ -40,15 +57,20 @@ export default function DivisionForm({ onSaveSuccess }) {
                 <input
                     type="text"
                     id="division_name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={formData.name}
+                    onChange={handleChange}
                     placeholder="e.g., Third Year Comp Eng - A"
                     className={inputClass}
                 />
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end space-x-4">
+                {editingItem && (
+                    <button type="button" onClick={onCancelEdit} className="px-4 py-2 bg-gray-600 text-white font-semibold rounded-md hover:bg-gray-700">
+                        Cancel
+                    </button>
+                )}
                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">
-                    Add Division
+                    {editingItem ? 'Update Division' : 'Add Division'}
                 </button>
             </div>
             {status && <p className={`mt-2 text-sm ${status.error ? "text-red-500" : "text-green-600"}`}>{status.msg}</p>}
