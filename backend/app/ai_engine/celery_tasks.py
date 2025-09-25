@@ -1,4 +1,5 @@
 import logging
+import time  # <--- MODIFICATION 1: IMPORT THE TIME MODULE
 from app import create_app
 from ..extensions import celery, db
 from ..models import Teacher, Room, Subject, Course, Division, User
@@ -6,11 +7,13 @@ from .constraint_manager import TimetableSolver
 
 logger = logging.getLogger(__name__)
 
-# --- THIS IS THE FUNCTION WE ARE MODIFYING ---
 def run_or_tools_solver(user_id, settings, task_update_callback):
     """The main logic function that uses the new OR-Tools solver."""
+    # --- MODIFICATION 2: START TOTAL TASK TIMER ---
+    total_start_time = time.perf_counter()
+
     task_update_callback('PROGRESS', {'status': 'Fetching latest data from database...', 'progress': 10})
-    
+
     courses = Course.query.filter_by(user_id=user_id).all()
     rooms = Room.query.filter_by(user_id=user_id).all()
     teachers = Teacher.query.filter_by(user_id=user_id).all()
@@ -19,42 +22,46 @@ def run_or_tools_solver(user_id, settings, task_update_callback):
     if not all([courses, rooms, teachers, divisions]):
         raise ValueError("Insufficient data. Please ensure you have created Divisions, Rooms, Teachers, Subjects, and assigned Courses.")
 
-    task_update_callback('PROGRESS', {'status': 'Initializing constraint solver with your custom settings...', 'progress': 30})
+    task_update_callback('PROGRESS', {'status': 'Initializing constraint solver...', 'progress': 30})
     
     solver = TimetableSolver(courses, rooms, teachers, divisions, settings)
 
     task_update_callback('PROGRESS', {'status': 'Solving... This may take a few moments.', 'progress': 50})
     
-    # --- START OF MODIFICATION ---
-
-    # 1. Capture both the solution and the detailed metrics from the solver
+    # Capture both the solution and the detailed metrics from the solver
     solution, metrics = solver.solve()
 
-    # 2. Log the detailed metrics to the console for your research paper
-    # This data will NOT go to the frontend.
-    logger.info(f"SOLVER METRICS FOR USER {user_id}: {metrics}")
+    # --- MODIFICATION 3: CALCULATE AND LOG RUNTIME ---
+    total_end_time = time.perf_counter()
+    total_runtime = total_end_time - total_start_time
+    # This log is for your research paper data collection. It will appear in the Celery worker's console.
+    logger.info(f"CP-SAT RUNTIME FOR USER {user_id}: Total Task Time = {total_runtime:.4f}s | Solver Wall Time = {metrics.get('wall_time_seconds', 0):.4f}s")
 
     task_update_callback('PROGRESS', {'status': 'Finalizing timetable...', 'progress': 90})
 
-    # 3. Update the error handling to use the precise status from the solver
+    # Update the error handling to use the precise status from the solver
     if solution is None:
         failure_reason = (f"No solution could be found (Solver Status: {metrics['status']}). "
                           "This may be due to impossible constraints (e.g., not enough rooms or teachers). "
                           "Check your custom working days and hours.")
         raise ValueError(failure_reason)
 
-    # 4. Return the original data structure that the frontend expects.
-    #    The detailed `metrics` are logged, but not sent to the UI.
+    # --- MODIFICATION 4: THE CRITICAL CHANGE - RETURN DYNAMIC & ACCURATE METRICS ---
+    # Return the real data structure that the frontend expects, populated with
+    # the actual metrics from the solver.
     return {
         'timetable': solution, 
         'settings': settings,
-        'metrics': {'conflicts': 0, 'status': 'Optimal solution found'} # Keep this simple for the UI
+        'metrics': {
+            'conflicts': metrics.get('conflicts', 0),
+            'status': f"Solution found (Status: {metrics.get('status', 'UNKNOWN')})",
+            'runtime_seconds': metrics.get('wall_time_seconds', 0)
+        }
     }
-    # --- END OF MODIFICATION ---
 
 @celery.task(bind=True)
 def generate_timetable_task(self, user_id):
-    """Celery task entry point."""
+    """Celery task entry point. (This function requires no changes)"""
     logger.info(f"Task {self.request.id} for user {user_id} received (OR-Tools).")
     app = create_app()
     with app.app_context():
@@ -63,6 +70,7 @@ def generate_timetable_task(self, user_id):
             if not user:
                 raise ValueError(f"User with ID {user_id} not found.")
 
+            # Expire to ensure we get the latest settings from the DB, not a cached version
             db.session.expire(user)
             latest_settings = user.settings
 
