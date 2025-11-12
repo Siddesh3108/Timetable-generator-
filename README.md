@@ -98,11 +98,11 @@ Each component runs inside a **Docker container**, enabling seamless integration
 
 ## 📸 Screenshots
 
-| Feature | Description |
-|----------|--------------|
-| ![Dashboard](screenshots/dashboard.png) | Interactive dashboard to manage all modules |
-| ![Generate Page](screenshots/generate_timetable.png) | Generate timetable with one click |
-| ![Results](screenshots/result_page.png) | View generated conflict-free timetable instantly |
+| Description |
+|--------------|
+| Interactive dashboard to manage all modules |
+| Generate timetable with one click |
+| View generated conflict-free timetable instantly |
 
 ---
 
