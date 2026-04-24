@@ -146,7 +146,7 @@ Each component runs inside a **Docker container**, enabling seamless integration
 
 ## 👨‍💻 Authors
 
-- **Siddesh Lohkare **  
+- **Siddesh Lohkare**  
 - **Shrutee Salpe **  
 - **Parth Gupta **  
 
