@@ -146,9 +146,9 @@ Each component runs inside a **Docker container**, enabling seamless integration
 
 ## 👨‍💻 Authors
 
-- **Siddesh Lohkare (A072)**  
-- **Shrutee Salpe (A098)**  
-- **Parth Gupta (A117)**  
+- **Siddesh Lohkare **  
+- **Shrutee Salpe **  
+- **Parth Gupta **  
 
 Under the guidance of  
 **Dr. Shailendra Aote (Asst. Professor, STME, NMIMS Navi Mumbai)**  
