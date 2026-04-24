@@ -153,6 +153,7 @@ Each component runs inside a **Docker container**, enabling seamless integration
 Under the guidance of  
 **Dr. Shailendra Aote (Asst. Professor, STME, NMIMS Navi Mumbai)**  
 **Dr. Toral Shah (Asst. Professor, STME, NMIMS Navi Mumbai)**
+
 Read the full paper from the below Link -
 https://ieeexplore.ieee.org/document/11379218
 
